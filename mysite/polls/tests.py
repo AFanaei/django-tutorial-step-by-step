@@ -63,11 +63,9 @@ class QuestionIndexViewTests(TestCase):
         index page.
         """
         create_question(question_text="Past question.", days=-30)
-        response = self.client.get(reverse('polls:index'))
-        self.assertQuerysetEqual(
-            response.context['latest_question_list'],
-            ['<Question: Past question.>']
-        )
+        create_question(question_text="Past question. 2", days=-15)
+        with self.assertNumQueries(2):
+            self.client.get(reverse('polls:index'))
 
     def test_future_question(self):
         """
