@@ -3,11 +3,16 @@
 <link rel="stylesheet" type="text/css" href="{% static 'polls/style.css' %}" />
 
 {% if latest_question_list %}
-    <ul>
+    <div style="padding: 16px;">
     {% for question in latest_question_list %}
-        <li><a href="{% url 'polls:detail' question.id %}">{{ question.question_text }}</a></li>
+        <a href="{% url 'polls:detail' question.id %}">{{ question.question_text }}</a>
+        <ul style="margin-top: 0">
+            {% for choice in question.choice_set.all %}
+                <li>{{ choice.choice_text }} -- {{ choice.votes }} vote{{ choice.votes|pluralize }}</li>
+            {% endfor %}
+        </ul>
     {% endfor %}
-    </ul>
+    </div>
 {% else %}
     <p>No polls are available.</p>
 {% endif %}
