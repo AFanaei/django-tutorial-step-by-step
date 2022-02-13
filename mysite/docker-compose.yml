@@ -1,0 +1,42 @@
+# We can not use version 3.X because it does not support mem_limit
+# https://github.com/docker/compose/issues/4513
+version: '2.4'
+
+services:
+  mysite-api:
+    container_name: mysite_backend_api
+    image: mysite-backend-api:local
+    build:
+      context: .
+    depends_on:
+      - postgres
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - .:/app/
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+       python manage.py runserver 0.0.0.0:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=mysite.settings
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/postgres
+
+  postgres:
+    image: postgres:11-alpine
+    container_name: torob_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - type: volume
+        source: mysite_postgres_data
+        target: /var/lib/postgresql/data
+    ports:
+      - 127.0.0.1:5432:5432
+    mem_limit: 500M
+    memswap_limit: 500M
+
+volumes:
+  mysite_postgres_data:
