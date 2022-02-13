@@ -4,4 +4,6 @@ li a {
 
 body {
     background: white url("images/background.gif") no-repeat right bottom;
+    min-height: 90vh;
+    margin: 0;
 }
