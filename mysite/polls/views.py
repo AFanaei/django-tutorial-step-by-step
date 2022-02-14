@@ -10,6 +10,7 @@ from .models import Choice, Question
 class IndexView(generic.ListView):
     template_name = 'polls/index.html'
     context_object_name = 'latest_question_list'
+    paginate_by = 5
 
     def get_queryset(self):
         """
@@ -18,7 +19,7 @@ class IndexView(generic.ListView):
         """
         return Question.objects.prefetch_related('choice_set').filter(
             pub_date__lte=timezone.now()
-        ).order_by('-pub_date')[:5]
+        ).order_by('-pub_date', '-id')
 
 
 class DetailView(generic.DetailView):
