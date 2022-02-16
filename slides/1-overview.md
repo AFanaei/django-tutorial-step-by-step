@@ -130,6 +130,10 @@ example.sql:2:1: warning: prefer-text-field
   help: Use a text field with a check constraint.
 ```
 
+--
+
+Always prefer constrainted textField over charField
+
 ---
 
 ### pg_stat_statment
@@ -185,6 +189,13 @@ urlpatterns = [
     path('<int:question_id>/vote/', views.vote, name='vote'),
 ]
 ```
+
+---
+
+### code is available [here](https://github.com/AFanaei/django-tutorial-step-by-step)
+- step by step implementation of django tutorial
+- setup docker and docker-compose
+- provide fixutre for each example
 
 ---
 
@@ -375,6 +386,10 @@ CREATE INDEX "polls_question_question_text_e0c682c7_like" ON "polls_question" ("
 COMMIT;
 ```
 
+--
+
+> The atomic attribute doesn’t have an effect on databases that don’t support DDL transactions (e.g. MySQL, Oracle). 
+
 ---
 
 > ... a standard index build locks out writes (but not reads) on the table until it's done
@@ -406,6 +421,53 @@ out.sql:6:1: warning: require-concurrent-index-creation
   help: Create the index CONCURRENTLY.
 
 find detailed examples and solutions for each rule at https://squawkhq.com/docs/rules
+```
+
+---
+
+#### how to execue blocking migration
+- we want to add a simple index
+- if add using migration will freeze db
+- if add concurrently results in django-db state differ
+
+use migrations.SeparateDatabaseAndState
+
+--
+
+```python
+class Migration(migrations.Migration):
+    # ...
+    operations = [
+        migrations.AlterField(
+            model_name='question',
+            name='pub_date',
+            field=models.DateTimeField(db_index=True, verbose_name='date published'),
+        ),
+    ]
+```
+
+--
+
+```python
+class Migration(migrations.Migration):
+    atomic = False
+    # ...
+    operations = [
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AlterField(
+                    model_name='question',
+                    name='pub_date',
+                    field=models.DateTimeField(db_index=True, verbose_name='date published'),
+                ),
+            ],
+            database_operations=[
+                migrations.RunSQL(
+                    sql='CREATE INDEX CONCURRENTLY IF NOTE EXISTS pub_date_index ON polls_question (pub_date)','
+                ),
+            ]
+        ),
+    ]
 ```
 
 ---
@@ -464,12 +526,14 @@ class IndexView(generic.ListView):
 
 ### why is default pagination slow
 
-- Counting number of items.
+- Counting number of items. [why?](https://www.cybertec-postgresql.com/en/postgresql-count-made-fast/)
+  - wasn't it possible to store count seperately?
+  - we have index counting number of items using an index should be trivial!
 - offset-limit pagination becomes slower in high pages
 
 ---
 
-### use keyset paginaiton
+### Limit-Offset
 
 ```sql
 SELECT *
@@ -480,6 +544,8 @@ SELECT *
   OFFSET 9995
 ```
 --
+
+### keyset
 
 ```sql
 SELECT *
@@ -562,12 +628,48 @@ Planning Time: 1.078 ms
 Execution Time: 0.139 ms
 ```
 
+--
+
+### visualize explain out put [4](https://tatiyants.com/pev/#/plans)
+
+![ss](ss.png) 
+
 ---
 
-### how to make queries faster
-- add index or partial index.
-- increase statics collection. 
-- remove dead tuples (pg_repack)
+#### add index or partial index
+- indexes will make read faster but write slower
+- sometimes indexes are used in certain conditions
+- use partial index
+
+--
+
+
+```python
+class Meta:
+    constraints = [
+        models.Index(name='vote_index', fields=['votes'], condition=models.Q(votes__gt=0)),
+    ]
+```
+
+---
+
+#### tune auto-vacuum
+
+- how postgres [MVCC](https://www.postgresql.org/docs/7.1/mvcc.html) works
+  - updates will delete a row and insert a new row
+  - deleted rows could not removed immediately
+  - an auto-vaccum job is run periodically to remove invisible rows
+- for an update heavy table this job should be run more frequently
+
+--
+
+Read more [here](https://www.cybertec-postgresql.com/en/tuning-autovacuum-postgresql/)
+
+- increase autovacuum_vacuum_cost_limit
+- reduce autovacuum_vacuum_cost_delay
+- reduce autovacuum_vacuum_scale_factor
+
+These parameters could be tuned per table.
 
 ---
 

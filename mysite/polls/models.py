@@ -27,3 +27,8 @@ class Choice(models.Model):
 
     def __str__(self):
         return self.choice_text
+
+    class Meta:
+        constraints = [
+            models.Index(name='vote_index', fields=['votes'], condition=models.Q(votes__gt=0)),
+        ]
